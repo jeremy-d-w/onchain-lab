@@ -10,7 +10,7 @@
             "profileInfo": "String?",
             "joinedAt": "UInt"
         },
-        "onchain": false
+        "onchain": true
     },
     "post/$postId": {
         "rules": {
