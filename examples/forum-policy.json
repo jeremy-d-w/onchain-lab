@@ -1,0 +1,60 @@
+{
+    "user": {
+        "fields": {
+            "walletAddress": "string",
+            "displayName": "string",
+            "profileInfo": "string",
+            "joinedAt": "number"
+        },
+        "rules": {
+            "read": "true",
+            "create": "@newData.walletAddress == @user.address",
+            "update": "@resource.data.walletAddress == @user.address",
+            "delete": "false"
+        },
+        "onchain": false
+    },
+    "post/$postId": {
+        "fields": {
+            "postId": "string",
+            "createdBy": "string",
+            "title": "string",
+            "preview": "string",
+            "content": "string",
+            "createdAt": "number",
+            "isPaid": "boolean",
+            "price": "number"
+        },
+        "rules": {
+            "read": "@resource.data.isPaid == false || @resource.data.createdBy == @user.address || @get('access/' + @user.address + '/' + @resource.data.postId).hasAccess == true",
+            "create": "@user.address != null",
+            "update": "@resource.data.createdBy == @user.address",
+            "delete": "@resource.data.createdBy == @user.address"
+        },
+        "onchain": true
+    },
+    "access/$userAddress/$postId": {
+        "fields": {
+            "walletAddress": "string",
+            "postId": "string",
+            "hasAccess": "boolean",
+            "paidAt": "number",
+            "transactionId": "string"
+        },
+        "rules": {
+            "read": "@resource.data.walletAddress == @user.address || @get('post/' + @resource.data.postId).createdBy == @user.address",
+            "create": "@newData.walletAddress == @user.address",
+            "update": "@newData.walletAddress == @user.address",
+            "delete": "false"
+        },
+        "onchain": true,
+        "hooks": {
+            "onchain": {
+                "create": "if (@newData.hasAccess && @newData.paidAt) { const post = @get('post/' + @newData.postId); if (post && post.isPaid) { @emit('PaymentReceived', { postId: @newData.postId, amount: post.price }); } }"
+            }
+        }
+    },
+    "functions": {
+        "calculatePostStats": "function(postId) { const post = get('post/' + postId); return { title: post.title, author: post.createdBy, isPaid: post.isPaid }; }"
+    }
+}

@@ -1,0 +1,66 @@
+{
+    "user": {
+        "rules": {
+            "read": "true",
+            "write": "@newData.walletAddress == @user.address"
+        },
+        "fields": {
+            "walletAddress": "String",
+            "displayName": "String",
+            "profileInfo": "String?",
+            "joinedAt": "UInt"
+        },
+        "onchain": false
+    },
+    "post/$postId": {
+        "rules": {
+            "read": "true",
+            "create": "@newData.createdBy == @user.address",
+            "update": "@resource.data.createdBy == @user.address",
+            "delete": "@resource.data.createdBy == @user.address"
+        },
+        "fields": {
+            "postId": "String",
+            "createdBy": "String",
+            "title": "String",
+            "preview": "String",
+            "fullContent": "String",
+            "createdAt": "UInt",
+            "isPaid": "Boolean",
+            "price": "UInt?"
+        },
+        "onchain": true,
+        "hooks": {
+            "onchain": {
+                "create": "logPostCreation($postId, @user.address)"
+            }
+        }
+    },
+    "access/$postId/$walletAddress": {
+        "rules": {
+            "read": "@user.address == $walletAddress || @user.address == @resource.post[$postId].createdBy",
+            "create": "@user.address == $walletAddress && @hasValidPayment(@user.address, @resource.post[$postId].createdBy, $postId, 1)",
+            "delete": "false"
+        },
+        "fields": {
+            "postId": "String",
+            "walletAddress": "String",
+            "hasAccess": "Boolean",
+            "paidAt": "UInt",
+            "paymentAmount": "UInt",
+            "transactionId": "String"
+        },
+        "onchain": true,
+        "hooks": {
+            "onchain": {
+                "create": "notifyAuthor($postId, $walletAddress, @newData.paymentAmount)"
+            }
+        }
+    },
+    "functions": {
+        "hasAccess": "function($walletAddress, $postId) { return !!@getAccessRight($walletAddress, $postId) || !@resource.post[$postId].isPaid || @resource.post[$postId].createdBy === $walletAddress; }",
+        "getAccessRight": "function($walletAddress, $postId) { return @resource.access[$postId][$walletAddress]; }",
+        "hasValidPayment": "function($sender, $recipient, $postId, $amount) { return @transferWholeTokens('0xPaymentTokenAddress', $sender, $recipient, $amount); }",
+        "transferWholeTokens": "function($tokenAddress, $sender, $recipient, $amount) { /* Transfer $amount of tokens from $sender to $recipient and return true if successful */ return true; }"
+    }
+}
